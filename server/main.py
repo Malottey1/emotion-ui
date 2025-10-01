@@ -1,31 +1,14 @@
-# server/main.py
-from fastapi import FastAPI, WebSocket
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import asyncio
-from emotion import EmotionEngine
-from chat import chat_once
+from fastapi import FastAPI
+from emotion import detect_emotion
+from db import get_db
 
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=['*'], allow_methods=['*'], allow_headers=['*'])
-engine = EmotionEngine()
 
-@app.websocket('/ws/frames')
-async def frames(ws: WebSocket):
-    await ws.accept()
-    try:
-        while True:
-            b64 = await ws.receive_text()  # dataURL frame
-            emotion = engine.infer_from_b64(b64) # {label, probs}
-            await ws.send_json(emotion)
-            await asyncio.sleep(0.2)  # ~5 Hz
-    except Exception:
-        await ws.close()
+@app.get("/")
+async def root():
+    return {"message": "Emotion AI Backend Running"}
 
-class ChatIn(BaseModel):
-    prompt: str
-    history: list[dict] = []
-
-@app.post('/chat')
-def chat(body: ChatIn):
-    return chat_once(body.prompt, body.history)
+@app.post("/detect")
+async def detect_emotion_route(image: bytes):
+    emotion = detect_emotion(image)
+    return {"emotion": emotion}
